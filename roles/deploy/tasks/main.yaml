@@ -1,0 +1,48 @@
+- name: gather facts from servers
+  setup:
+  delegate_to: "{{item}}"
+  delegate_facts: True
+  loop: "{{groups['serverDb']}}"
+
+- name: install iptables-services
+  yum:
+    name: iptables-services
+    state: present
+
+- name: enable iptables-services
+  service:
+    name: iptables
+    enabled: yes
+
+- name: allow my remote access ssh
+  iptables:
+    chain: INPUT
+    source: 178.47.141.162
+    protocol: tcp
+    match: tcp
+    destination_port: "22"
+    in_interface: "{{ ansible_default_ipv4.interface }}"
+    jump: ACCEPT
+
+- name: Allow related and established connections
+  iptables:
+    chain: INPUT
+    ctstate: ESTABLISHED,RELATED
+    jump: ACCEPT
+
+- name: save iptable rules
+  shell: service iptables save
+
+- name: install on server db
+  include: server.yaml
+  when: ansible_hostname == "serverDb"
+ 
+- name: install on server app
+  include: app.yaml
+  when: ansible_hostname == "serverApp"
+ 
+- name: disable public access
+  iptables:
+    chain: INPUT
+    in_interface: "{{ ansible_default_ipv4.interface }}"
+    jump: DROP

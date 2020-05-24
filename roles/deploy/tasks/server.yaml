@@ -1,0 +1,74 @@
+- name: install mariadb repo 
+  copy:
+    src: files/mariadb.repo
+    dest: /etc/yum.repos.d/mariadb.repo
+
+- name: install mysql 
+  yum:
+    name: mariadb-server
+    state: present
+
+- name: create fs
+  filesystem:
+    fstype: ext4
+    dev: /dev/sda
+
+- name: mount fs
+  mount:
+    path: /media
+    src: /dev/sda
+    fstype: ext4
+    state: mounted
+
+- name: grant folder permission
+  file:
+    path: /media
+    owner: mysql
+    group: mysql
+    mode: 0755
+
+- name: move mysql folder
+  shell: mv /var/lib/mysql /media/
+
+- name: Allow remote access
+  lineinfile:
+    path: /etc/my.cnf.d/server.cnf
+    insertafter: '^#bind-address=0.0.0.0'
+    line: "bind-address=0.0.0.0\ndatadir=/media/mysql\nsocket=/media/mysql/mysql.sock"
+
+- name: fix socket
+  lineinfile:
+    path: /etc/my.cnf.d/client.cnf
+    insertafter: '^[client]'
+    line: "socket=/media/mysql/mysql.sock"
+
+- name: create my.cnf for user
+  copy:
+    dest: /root/.my.cnf
+    content: |
+      [client]
+      socket=/media/mysql/mysql.sock 
+
+- name: run mysql
+  systemd:
+    name: mariadb 
+    state: started
+    enabled: yes
+
+- name: install MySQL-python
+  yum:
+    name: MySQL-python
+    state: present
+
+- name: create mysqldb
+  mysql_db:
+    name: tcg
+    state: present
+
+- name: create tcg user
+  mysql_user:
+    name: tcg
+    host: '%'
+    password: tcg
+    priv: 'tcg.*:ALL'
+    state: present

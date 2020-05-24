@@ -1,0 +1,27 @@
+- name: allow 8084 port access
+  iptables:
+    chain: INPUT
+    destination_port: 8084
+    jump: ACCEPT
+    protocol: tcp
+
+- name: get app
+  get_url:
+    url: https://cloud.imhio.com/s/aDH5ktf99CG7k8D/download
+    dest: /tmp/tcg.rpm
+
+- name: install tcg
+  yum:
+    name: /tmp/tcg.rpm
+    state: present
+
+- name: copy config 
+  template:
+    src: templates/tcg.json.j2
+    dest: /etc/tcg/tcg.json
+
+- name: start tcg 
+  systemd:
+    name: tcg 
+    enabled: yes
+    state: restarted
